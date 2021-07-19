@@ -86,14 +86,17 @@ if __name__ == "__main__":
         for file in input_files
     ]
     concat_data = pd.concat(raw_data)
+    concat_data.drop(label_column, axis=1, inplace=True)
         
-    categorical_cols = [col for col in concat_data.columns if col not in numeric_cols + [label_column]]
+    categorical_cols = [col for col in concat_data.columns if col not in numeric_cols]
 
-    class_0 = concat_data[concat_data[label_column] == 0]
-    class_1 = concat_data[concat_data[label_column] == 1]
-    down_class_0 = class_0.sample(4*len(class_1), random_state=42) # class_0 : class_1 = 4 : 1
+#     class_0 = concat_data[concat_data[label_column] == 0]
+#     class_1 = concat_data[concat_data[label_column] == 1]
+#     down_class_0 = class_0.sample(4*len(class_1), random_state=42) # class_0 : class_1 = 4 : 1
     
-    train_data = pd.concat([down_class_0, class_1])
+#     train_data = pd.concat([down_class_0, class_1])
+
+    train_data = concat_data
 
     numeric_transformer = make_pipeline(SimpleImputer(strategy="median", add_indicator=True), StandardScaler()) # NaN marking.
 
@@ -124,6 +127,9 @@ def input_fn(input_data, content_type):
         # Read the raw input data as CSV.
         df = pd.read_csv(StringIO(input_data))
         return df
+    elif content_type == "application/json":
+        df = pd.read_json(StringIO(input_data), orient='records')
+        return df
     else:
         raise ValueError("{} not supported by script!".format(content_type))
 
@@ -150,12 +156,17 @@ def output_fn(prediction, accept):
 
 def predict_fn(input_data, model):
     """Preprocess input data"""
-#     features = np.array([model.transform(input_data)])
-    features = model.transform(input_data)
+    variables = [col for col in input_data.columns if col != label_column]
+    features = model.transform(input_data[variables])
     features = features.toarray()
-#     print(features)
+    print(f'feature shape: {features.shape}') # print the shape for logging purpose
 
-    return features
+    if label_column in input_data:
+        # Return the label (as the first column) and the set of features.
+        return np.insert(features, 0, input_data[label_column], axis=1)
+    else:
+        # Return only the set of features
+        return features
 
 
 def model_fn(model_dir):
