@@ -120,15 +120,18 @@ if __name__ == "__main__":
 
     
 def input_fn(input_data, content_type):
-    """Parse input data payload
-    We currently only take csv input.
-    """
+    """Parse input data payload"""
     if content_type == "text/csv":
         # Read the raw input data as CSV.
         df = pd.read_csv(StringIO(input_data))
         return df
     elif content_type == "application/json":
-        df = pd.read_json(StringIO(input_data), orient='records')
+        try:
+            df = pd.read_json(StringIO(data), orient='records')
+        except:
+            df = pd.read_json(StringIO(data), orient='records', typ='series')
+#         df = pd.read_json(StringIO(input_data), orient='records')
+        print(df.shape) # print the shape for logging purpose
         return df
     else:
         raise ValueError("{} not supported by script!".format(content_type))
