@@ -100,6 +100,8 @@ variables = [
      'worst_status_active_inv'
 ]
 
+categorical_cols = [col for col in variables if col not in numeric_cols]
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -125,17 +127,15 @@ if __name__ == "__main__":
         
     raw_data = [
         pd.read_csv(
-            file,
+            file, sep=';'
         )
         for file in input_files
     ]
     concat_data = pd.concat(raw_data)
     concat_data.drop(label_column, axis=1, inplace=True)
         
-    categorical_cols = [col for col in concat_data.columns if col not in numeric_cols]
-
     train_data = concat_data
-
+    
     numeric_transformer = make_pipeline(SimpleImputer(strategy="median", add_indicator=True), StandardScaler()) # NaN marking.
 
     categorical_transformer = make_pipeline(
@@ -161,7 +161,7 @@ def input_fn(input_data, content_type):
     """Parse input data payload"""
     if content_type == "text/csv":
         # Read the raw input data as CSV.
-        df = pd.read_csv(StringIO(input_data))
+        df = pd.read_csv(StringIO(input_data), sep=';')
         return df
     elif content_type == "application/json":
         data = json.load(StringIO(input_data))
