@@ -56,6 +56,50 @@ numeric_cols = [
     'time_hours'    
 ]
 
+variables = [
+    'account_amount_added_12_24m',
+     'account_days_in_dc_12_24m',
+     'account_days_in_rem_12_24m',
+     'account_days_in_term_12_24m',
+     'account_incoming_debt_vs_paid_0_24m',
+     'account_status',
+     'account_worst_status_0_3m',
+     'account_worst_status_12_24m',
+     'account_worst_status_3_6m',
+     'account_worst_status_6_12m',
+     'age',
+     'avg_payment_span_0_12m',
+     'avg_payment_span_0_3m',
+     'merchant_category',
+     'merchant_group',
+     'has_paid',
+     'max_paid_inv_0_12m',
+     'max_paid_inv_0_24m',
+     'name_in_email',
+     'num_active_div_by_paid_inv_0_12m',
+     'num_active_inv',
+     'num_arch_dc_0_12m',
+     'num_arch_dc_12_24m',
+     'num_arch_ok_0_12m',
+     'num_arch_ok_12_24m',
+     'num_arch_rem_0_12m',
+     'num_arch_written_off_0_12m',
+     'num_arch_written_off_12_24m',
+     'num_unpaid_bills',
+     'status_last_archived_0_24m',
+     'status_2nd_last_archived_0_24m',
+     'status_3rd_last_archived_0_24m',
+     'status_max_archived_0_6_months',
+     'status_max_archived_0_12_months',
+     'status_max_archived_0_24_months',
+     'recovery_debt',
+     'sum_capital_paid_account_0_12m',
+     'sum_capital_paid_account_12_24m',
+     'sum_paid_inv_0_12m',
+     'time_hours',
+     'worst_status_active_inv'
+]
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -90,12 +134,6 @@ if __name__ == "__main__":
         
     categorical_cols = [col for col in concat_data.columns if col not in numeric_cols]
 
-#     class_0 = concat_data[concat_data[label_column] == 0]
-#     class_1 = concat_data[concat_data[label_column] == 1]
-#     down_class_0 = class_0.sample(4*len(class_1), random_state=42) # class_0 : class_1 = 4 : 1
-    
-#     train_data = pd.concat([down_class_0, class_1])
-
     train_data = concat_data
 
     numeric_transformer = make_pipeline(SimpleImputer(strategy="median", add_indicator=True), StandardScaler()) # NaN marking.
@@ -126,12 +164,19 @@ def input_fn(input_data, content_type):
         df = pd.read_csv(StringIO(input_data))
         return df
     elif content_type == "application/json":
-        try:
-            df = pd.read_json(StringIO(data), orient='records')
-        except:
-            df = pd.read_json(StringIO(data), orient='records', typ='series')
-#         df = pd.read_json(StringIO(input_data), orient='records')
-        print(df.shape) # print the shape for logging purpose
+        data = json.load(StringIO(input_data))
+
+        s = []
+        for i, elm in enumerate(data):
+            row = {k:v for k,v in zip(variables, elm['features'])}
+            s.append(pd.Series(row, name=i).replace('nan', np.nan).replace('NaN', np.nan).replace('', np.nan))
+
+        if len(s) >= 2:
+            df = pd.concat(s, axis=1).T
+        else:
+            df = s[0].to_frame().T
+            
+        print(f'input shape: {df.shape}') # print the shape for logging purpose
         return df
     else:
         raise ValueError("{} not supported by script!".format(content_type))
@@ -159,7 +204,6 @@ def output_fn(prediction, accept):
 
 def predict_fn(input_data, model):
     """Preprocess input data"""
-    variables = [col for col in input_data.columns if col != label_column]
     features = model.transform(input_data[variables])
     features = features.toarray()
     print(f'feature shape: {features.shape}') # print the shape for logging purpose
